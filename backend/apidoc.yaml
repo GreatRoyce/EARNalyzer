@@ -1,0 +1,158 @@
+openapi: 3.0.0
+
+info:
+  title: Earnalyzer API
+  description: |
+    API V1 Documentation for **Earnalyzer** — a platform for managing and showcasing 
+    structured finance sessions, user activities, and analytics.
+    
+    This API handles:
+    - User Authentication (Register, Login, Logout)
+    - Income Sessions
+    - Expense Tracking
+    - Admin Operations
+    - Reporting & Analytics
+
+    **Note:** This environment is currently running on localhost and will 
+    be updated with a production URL once deployed.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001/api/v1
+    description: Local Development Server (temporary until deployment)
+  - url: https://api.earnalyzer.com/v1
+    description: Production Server (to be activated at launch)
+
+tags:
+  - name: Authentication
+    description: Endpoints for user login, registration, JWT sessions, and email verification.
+  - name: Admin
+    description: Admin-level operations for managing users, sessions, analytics.
+  - name: Income Sessions
+    description: CRUD APIs for creating income sessions and attaching expenses.
+  - name: Reports
+    description: Dynamic financial reports such as daily, weekly, monthly insights.
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Creates a new user account and generates a JWT token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+              required:
+                - name
+                - email
+                - password
+      responses:
+        '201':
+          description: User registered successfully
+        '400':
+          description: Validation error
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login an existing user
+      description: Authenticates the user and returns a JWT token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+              required:
+                - email
+                - password
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid email or password
+
+  /income/create:
+    post:
+      tags:
+        - Income Sessions
+      summary: Create a new income session
+      security:
+        - bearerAuth: []
+      description: Initializes a new financial session where incomes and expenses can be tracked.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                amount:
+                  type: number
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Session created successfully
+        '401':
+          description: Unauthorized — missing or invalid token
+
+  /income/{sessionId}/add-expense:
+    post:
+      tags:
+        - Income Sessions
+      summary: Add an expense to a session
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+          description: ID of the active income session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                cost:
+                  type: number
+                category:
+                  type: string
+      responses:
+        '200':
+          description: Expense added successfully
+        '404':
+          description: Session not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+

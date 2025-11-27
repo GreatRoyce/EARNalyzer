@@ -5,49 +5,58 @@ const morgan = require("morgan");
 const path = require("path");
 const connectDB = require("./config/dbConnection");
 
-// Import Routes
+// 📘 ApiDoc (Swagger)
+const YAML = require("yamljs");
+const swaggerUi = require("swagger-ui-express");
+const swaggerDocument = YAML.load(path.join(__dirname, "apidoc.yaml"));
+
+// 🌐 Import Routes
 const regAndLogin = require("./routes/authRoutes");
 const incomeRoutes = require("./routes/incomeRoutes");
 const pdfRoute = require("./routes/pdfRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 
-// Initialize environment variables
+// 🔑 Initialize environment variables
 dotenv.config();
 
-// Initialize express app
+// 🚀 Initialize express app
 const app = express();
 
-// ✅ Configure CORS to allow frontend on port 5178
+// 🎯 Configure CORS (Frontend allowed)
 app.use(
   cors({
-    origin: ["http://localhost:5173"], // your frontend port
+    origin: ["http://localhost:5173"],
     methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true, // allow cookies/auth headers if needed
+    credentials: true,
   })
 );
 
-// Middleware
+// 🛠 Middleware
 app.use(express.json());
 app.use(morgan("dev"));
 
-// Connect Database
+// 🗄 Connect to Database
 connectDB();
 
-// Root route
+// 🌍 Root Route
 app.get("/", (req, res) => {
   res.status(200).json({
     message: "Welcome to Earnalyzer API 🚀",
   });
 });
 
-// API Routes
+// 📘 Swagger UI Route
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+// 📦 API Routes
 app.use("/api/v1/auth", regAndLogin);
 app.use("/api/v1/income-sessions", incomeRoutes);
 app.use("/api/v1/pdf", pdfRoute);
 app.use("/api/v1/admin", adminRoutes);
 
-// Server listen
+// 🚀 Server Listen
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
+  console.log(`📘 API Documentation: http://localhost:${PORT}/api-docs`);
 });
