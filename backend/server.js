@@ -22,7 +22,11 @@ dotenv.config();
 // 🚀 Initialize express app
 const app = express();
 
+<<<<<<< HEAD
 // 🎯 Configure CORS (Frontend allowed)
+=======
+
+>>>>>>> 30057f683f6ceed1c64cb93f41eda49015a99757
 const allowedOrigins = [
   "http://localhost:5173",                 // local dev
   "https://earnalyzer.vercel.app",         // production frontend
