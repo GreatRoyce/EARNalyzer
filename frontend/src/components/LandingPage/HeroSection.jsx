@@ -34,7 +34,7 @@ function HeroSection() {
     }, 4500); // Increased from 3000ms to 4500ms to account for slower animations
 
     return () => clearInterval(interval);
-  }, []);
+  }, [rotatingWords.length]);
 
   return (
     <section className="flex flex-col justify-center items-center min-h-screen px-4 sm:px-6 relative overflow-hidden pt-32">

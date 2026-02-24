@@ -7,7 +7,7 @@ const getAllUsers = async (req, res) => {
     res.status(200).json({ users });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -18,7 +18,7 @@ const getAllSessions = async (req, res) => {
       .populate("user", "username email");
     res.status(200).json({ sessions });
   } catch (err) {
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ message: "Server error" });
   }
 };
 

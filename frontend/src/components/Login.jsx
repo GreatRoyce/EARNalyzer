@@ -12,6 +12,8 @@ function Login() {
   const [forgotPassword, setForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const getApiError = (err, fallback) =>
+    err.response?.data?.message || err.response?.data?.error || fallback;
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -29,7 +31,7 @@ function Login() {
       setSuccess(true);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      setError(getApiError(err, "Login failed"));
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,7 @@ function Login() {
       setSuccess(true);
     } catch (err) {
       console.error("Forgot password error:", err);
-      setError(err.response?.data?.message || "Failed to request password reset");
+      setError(getApiError(err, "Failed to request password reset"));
     } finally {
       setLoading(false);
     }

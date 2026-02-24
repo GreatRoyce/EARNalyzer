@@ -10,7 +10,7 @@ import {
   FiFilter,
 } from "react-icons/fi";
 
-const Analytics = ({ history, currentSession }) => {
+const Analytics = ({ history }) => {
   // Manuscript color palette matching ChartsSection
   const MANUSCRIPT_COLORS = {
     parchment: "#2A1B0D",
@@ -138,7 +138,6 @@ const Analytics = ({ history, currentSession }) => {
       totalSavings,
       savingsRate,
       averageSessionLength,
-      categorySpending,
       monthlyData,
       topCategories,
       sessionUtilizations,
@@ -153,7 +152,6 @@ const Analytics = ({ history, currentSession }) => {
     totalSavings,
     savingsRate,
     averageSessionLength,
-    categorySpending,
     monthlyData,
     topCategories,
     sessionUtilizations,
@@ -630,11 +628,12 @@ const MetricCard = ({
   title,
   value,
   subtitle,
-  icon: Icon,
+  icon,
   color,
   isPercentage = false,
   trend,
 }) => {
+  const MetricIcon = icon;
   const displayValue = isPercentage ? value.toFixed(1) : Math.abs(value).toFixed(2);
   const displaySuffix = isPercentage ? "%" : "";
 
@@ -648,7 +647,7 @@ const MetricCard = ({
           className="p-2 rounded-lg flex-shrink-0"
           style={{ backgroundColor: `${color}20` }}
         >
-          <Icon className="h-5 w-5 lg:h-6 lg:w-6" style={{ color }} />
+          <MetricIcon className="h-5 w-5 lg:h-6 lg:w-6" style={{ color }} />
         </div>
         <h3
           className="font-semibold text-sm lg:text-base"

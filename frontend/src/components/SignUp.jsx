@@ -14,6 +14,8 @@ const SignUp = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
+  const getApiError = (err, fallback) =>
+    err.response?.data?.message || err.response?.data?.error || fallback;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,8 +26,8 @@ const SignUp = () => {
       return setError("Secret passages do not match");
     }
 
-    if (password.length < 6) {
-      return setError("Secret passage must be at least 6 characters long");
+    if (password.length < 8) {
+      return setError("Secret passage must be at least 8 characters long");
     }
 
     try {
@@ -42,7 +44,7 @@ const SignUp = () => {
       setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
       console.error("Sign up error:", err);
-      setError(err.response?.data?.message || "Failed to join our order");
+      setError(getApiError(err, "Failed to join our order"));
     } finally {
       setLoading(false);
     }

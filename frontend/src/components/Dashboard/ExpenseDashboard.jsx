@@ -6,6 +6,22 @@ import SessionCard from "./SessionCard";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#A28BFF"];
 
+const ExpensePieTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+        <p className="font-semibold text-gray-800">{data.name}</p>
+        <p className="text-sm text-gray-600">Amount: {data.value}</p>
+        <p className="text-sm text-gray-600">
+          Percentage: {data.percentage.toFixed(1)}%
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 const ExpenseDashboard = ({ session, history, onAddExpense, onConcludeSession, onDownloadPDF, onCreateSession }) => {
   const [expenseTitle, setExpenseTitle] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
@@ -48,21 +64,6 @@ const ExpenseDashboard = ({ session, history, onAddExpense, onConcludeSession, o
     income: s.incomeAmount,
     balance: s.balance,
   }));
-
-  // Custom tooltip
-  const CustomTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-semibold text-gray-800">{data.name}</p>
-          <p className="text-sm text-gray-600">Amount: {data.value}</p>
-          <p className="text-sm text-gray-600">Percentage: {data.percentage.toFixed(1)}%</p>
-        </div>
-      );
-    }
-    return null;
-  };
 
   // Pie label
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percentage }) => {
@@ -128,7 +129,7 @@ const ExpenseDashboard = ({ session, history, onAddExpense, onConcludeSession, o
                           <Cell key={`cell-${index}`} fill={entry.fill || COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip content={<CustomTooltip />} />
+                      <Tooltip content={<ExpensePieTooltip />} />
                       <Legend
                         formatter={(value) => {
                           const data = completePieData.find((item) => item.name === value);

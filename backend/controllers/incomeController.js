@@ -1,116 +1,119 @@
 const IncomeSession = require("../models/IncomeSession");
 const analyzeSpendAndSendEmail = require("../utils/spendingAnalysis");
 
-// 🟢 Create new income session
 const createIncomeSession = async (req, res) => {
   try {
     const { incomeAmount } = req.body;
+    const parsedIncome = Number(incomeAmount);
 
-    if (!incomeAmount || incomeAmount <= 0) {
+    if (!parsedIncome || parsedIncome <= 0) {
       return res
         .status(400)
-        .json({ error: "Please enter a valid income amount." });
+        .json({ message: "Please enter a valid income amount." });
     }
 
     const session = await IncomeSession.create({
       user: req.user._id,
-      incomeAmount,
-      balance: incomeAmount,
+      incomeAmount: parsedIncome,
+      balance: parsedIncome,
     });
 
-    res
+    return res
       .status(201)
       .json({ message: "Income session created successfully", session });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
-// 🟡 Add expense to session
 const addExpense = async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { title, amount } = req.body;
+    const parsedAmount = Number(amount);
 
-    if (!title || !amount || amount <= 0) {
+    if (!title || !parsedAmount || parsedAmount <= 0) {
       return res
         .status(400)
-        .json({ error: "Please enter a valid title and amount." });
+        .json({ message: "Please enter a valid title and amount." });
     }
 
-    const session = await IncomeSession.findOne({
-      _id: sessionId,
-      user: req.user._id,
-    });
+    const session = await IncomeSession.findOneAndUpdate(
+      {
+        _id: sessionId,
+        user: req.user._id,
+        isConcluded: false,
+        balance: { $gte: parsedAmount },
+      },
+      {
+        $push: { expenses: { title, amount: parsedAmount } },
+        $inc: { balance: -parsedAmount },
+      },
+      { new: true, runValidators: true }
+    );
 
     if (!session) {
-      return res.status(404).json({ error: "Income session not found." });
+      return res.status(400).json({
+        message:
+          "Unable to add expense. Session may be missing, concluded, or have insufficient balance.",
+      });
     }
 
-    const newBalance = session.balance - amount;
-    if (newBalance < 0) {
-      return res
-        .status(400)
-        .json({ error: "Insufficient balance for this expense." });
-    }
-
-    session.expenses.push({ title, amount });
-    session.balance = newBalance;
-
-    await session.save();
-
-    res.status(200).json({
+    return res.status(200).json({
       message: "Expense added successfully",
       session,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
-// 🟣 Fetch income session history
 const getHistory = async (req, res) => {
   try {
-    const sessions = await IncomeSession.find({ user: req.user._id });
-    res.status(200).json({ sessions });
+    const sessions = await IncomeSession.find({ user: req.user._id }).sort({
+      createdAt: -1,
+    });
+    return res.status(200).json({ sessions });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
-// 🔵 Conclude session (mark as completed)
 const concludeSession = async (req, res) => {
   try {
     const { sessionId } = req.params;
 
-    const session = await IncomeSession.findOne({
-      _id: sessionId,
-      user: req.user._id,
-    });
+    const session = await IncomeSession.findOneAndUpdate(
+      {
+        _id: sessionId,
+        user: req.user._id,
+        isConcluded: false,
+      },
+      { $set: { isConcluded: true } },
+      { new: true }
+    );
 
     if (!session) {
-      return res.status(404).json({ error: "Income session not found." });
+      return res.status(404).json({ message: "Income session not found." });
     }
 
-    session.isConcluded = true;
-    await session.save();
+    analyzeSpendAndSendEmail(req.user, session).catch((err) => {
+      console.error("Spending analysis email failed:", err);
+    });
 
-    analyzeSpendAndSendEmail(req.user, session);
-
-    res.status(200).json({
+    return res.status(200).json({
       message: "Income session concluded successfully.",
       session,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
-// 🔴 Get single session by ID
 const getSessionById = async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -121,17 +124,16 @@ const getSessionById = async (req, res) => {
     });
 
     if (!session) {
-      return res.status(404).json({ error: "Income session not found." });
+      return res.status(404).json({ message: "Income session not found." });
     }
 
-    res.status(200).json({ session });
+    return res.status(200).json({ session });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
-// 🔴 Delete income session
 const deleteSession = async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -142,16 +144,15 @@ const deleteSession = async (req, res) => {
     });
 
     if (!session) {
-      return res.status(404).json({ error: "Income session not found." });
+      return res.status(404).json({ message: "Income session not found." });
     }
 
-    res.status(200).json({ message: "Session deleted successfully." });
+    return res.status(200).json({ message: "Session deleted successfully." });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 };
-
 
 module.exports = {
   createIncomeSession,
@@ -159,5 +160,5 @@ module.exports = {
   getHistory,
   concludeSession,
   getSessionById,
-  deleteSession
+  deleteSession,
 };

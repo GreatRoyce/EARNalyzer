@@ -8,7 +8,7 @@ const adminProtect = require("../middlewares/adminMiddleware");
 
 const router = express.Router();
 
-router.get("/users", protect, getAllUsers);
-router.get("/sessions", protect, getAllSessions);
+router.get("/users", protect, adminProtect, getAllUsers);
+router.get("/sessions", protect, adminProtect, getAllSessions);
 
 module.exports = router;

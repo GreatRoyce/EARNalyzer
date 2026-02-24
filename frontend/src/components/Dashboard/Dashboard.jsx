@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Topbar from "./Topbar";
 import Sidebar from "./Sidebar";
 import ExpenseDashboard from "./ExpenseDashboard";
@@ -21,7 +21,6 @@ const Dashboard = () => {
   const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
 
-  // Manuscript color palette
   const MANUSCRIPT_COLORS = {
     parchment: "#2A1B0D",
     agedPaper: "#3D2816",
@@ -35,9 +34,16 @@ const Dashboard = () => {
     charcoal: "#2F4F4F",
   };
 
-  const user = JSON.parse(localStorage.getItem("user"));
+  const getApiError = (err, fallback) =>
+    err.response?.data?.message || err.response?.data?.error || fallback;
 
-  // Check if mobile on mount and resize
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem("user"));
+  } catch {
+    user = null;
+  }
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 1024);
@@ -45,27 +51,28 @@ const Dashboard = () => {
 
     checkMobile();
     window.addEventListener("resize", checkMobile);
-
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  useEffect(() => {
-    const fetchSessions = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get("/income-sessions/history");
-        const sessions = res.data.sessions || [];
-        const active = sessions.find((s) => !s.isConcluded);
-        setCurrentSession(active || null);
-        setHistory(sessions);
-      } catch (err) {
-        console.error("Error fetching sessions:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSessions();
+  const fetchSessions = useCallback(async (withLoader = false) => {
+    if (withLoader) setLoading(true);
+    try {
+      const res = await api.get("/income-sessions/history");
+      const sessions = res.data.sessions || [];
+      const active = sessions.find((s) => !s.isConcluded);
+      setCurrentSession(active || null);
+      setHistory(sessions);
+    } catch (err) {
+      console.error("Error fetching sessions:", err);
+      alert(getApiError(err, "Failed to load sessions"));
+    } finally {
+      if (withLoader) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchSessions(true);
+  }, [fetchSessions]);
 
   const handleDownloadPDF = async (sessionId) => {
     try {
@@ -84,7 +91,7 @@ const Dashboard = () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Error downloading PDF:", err);
-      alert("❌ Failed to download PDF report");
+      alert(getApiError(err, "Failed to download PDF report"));
     }
   };
 
@@ -97,15 +104,14 @@ const Dashboard = () => {
 
     setCreatingSession(true);
     try {
-      const res = await api.post("/income-sessions/create", {
+      await api.post("/income-sessions/create", {
         incomeAmount: Number(incomeAmount),
       });
-      setCurrentSession(res.data.session);
-      setHistory([res.data.session, ...history]);
-      alert("✅ Session created successfully!");
+      await fetchSessions();
+      alert("Session created successfully.");
     } catch (err) {
       console.error("Error creating session:", err);
-      alert("Failed to create session");
+      alert(getApiError(err, "Failed to create session"));
     } finally {
       setCreatingSession(false);
     }
@@ -113,26 +119,25 @@ const Dashboard = () => {
 
   const handleAddExpense = async (sessionId, expenseData) => {
     try {
-      const res = await api.post(
-        `/income-sessions/${sessionId}/add-expense`,
-        expenseData
-      );
-      setCurrentSession(res.data.session);
+      await api.post(`/income-sessions/${sessionId}/add-expense`, expenseData);
+      await fetchSessions();
     } catch (err) {
       console.error("Error adding expense:", err);
+      alert(getApiError(err, "Failed to add expense"));
     }
   };
 
   const handleConcludeSession = async (sessionId) => {
-    if (!window.confirm("Are you sure you want to conclude this session?"))
+    if (!window.confirm("Are you sure you want to conclude this session?")) {
       return;
+    }
     try {
-      const res = await api.post(`/income-sessions/${sessionId}/conclude`);
-      setCurrentSession(null);
-      setHistory([res.data.session, ...history]);
-      alert("✅ Session concluded successfully!");
+      await api.post(`/income-sessions/${sessionId}/conclude`);
+      await fetchSessions();
+      alert("Session concluded successfully.");
     } catch (err) {
       console.error("Error concluding session:", err);
+      alert(getApiError(err, "Failed to conclude session"));
     }
   };
 
@@ -141,29 +146,17 @@ const Dashboard = () => {
       !window.confirm(
         "Are you sure you want to delete this session? This action cannot be undone."
       )
-    )
+    ) {
       return;
-
-    // Optimistic UI update
-    const originalHistory = [...history];
-    const originalCurrentSession = currentSession;
-
-    // Update state to remove the deleted session from the UI immediately
-    setHistory(history.filter((session) => session._id !== sessionId));
-    if (currentSession && currentSession._id === sessionId) {
-      setCurrentSession(null);
     }
 
     try {
       await api.delete(`/income-sessions/${sessionId}`);
-      alert("✅ Session deleted successfully!");
+      await fetchSessions();
+      alert("Session deleted successfully.");
     } catch (err) {
       console.error("Error deleting session:", err);
-      alert("❌ Failed to delete session");
-
-      // If the API call fails, revert the state to its original form
-      setHistory(originalHistory);
-      setCurrentSession(originalCurrentSession);
+      alert(getApiError(err, "Failed to delete session"));
     }
   };
 
@@ -178,12 +171,11 @@ const Dashboard = () => {
     navigate("/login");
   };
 
-  // Close sidebar when clicking on overlay
   const handleOverlayClick = () => {
     setSidebarOpen(false);
   };
 
-  if (loading)
+  if (loading) {
     return (
       <div
         className="flex justify-center items-center min-h-screen bg-red-200/20"
@@ -206,12 +198,13 @@ const Dashboard = () => {
         </div>
       </div>
     );
+  }
 
   const renderActiveView = () => {
     const viewProps = {
       Dashboard: {
         session: currentSession,
-        history: history,
+        history,
         onAddExpense: handleAddExpense,
         onConcludeSession: handleConcludeSession,
         onCreateSession: handleCreateSession,
@@ -219,28 +212,28 @@ const Dashboard = () => {
         onDeleteSession: handleDeleteSession,
       },
       "Income Sessions": {
-        currentSession: currentSession,
-        history: history,
+        currentSession,
+        history,
         onCreateSession: handleCreateSession,
         onConcludeSession: handleConcludeSession,
         onDeleteSession: handleDeleteSession,
-        creatingSession: creatingSession,
+        creatingSession,
       },
       "Expense Tracking": {
-        currentSession: currentSession,
+        currentSession,
         onAddExpense: handleAddExpense,
       },
       History: {
-        history: history,
+        history,
         onDownloadPDF: handleDownloadPDF,
         onDeleteSession: handleDeleteSession,
       },
       Analytics: {
-        history: history,
-        currentSession: currentSession,
+        history,
+        currentSession,
       },
       Reports: {
-        history: history,
+        history,
         onDownloadPDF: handleDownloadPDF,
       },
     };
@@ -249,9 +242,9 @@ const Dashboard = () => {
       Dashboard: ExpenseDashboard,
       "Income Sessions": IncomeSessions,
       "Expense Tracking": ExpenseTracking,
-      History: History,
-      Analytics: Analytics,
-      Reports: Reports,
+      History,
+      Analytics,
+      Reports,
     };
 
     const Component = components[activeView];
@@ -263,7 +256,6 @@ const Dashboard = () => {
       className="flex flex-col h-screen bg-white overflow-hidden"
       style={{ fontFamily: "serif" }}
     >
-      {/* Fixed topbar */}
       <div className="flex-shrink-0">
         <Topbar
           username={user?.username}
@@ -275,7 +267,6 @@ const Dashboard = () => {
       </div>
 
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Mobile overlay */}
         {sidebarOpen && isMobile && (
           <div
             className="fixed inset-0 z-40 lg:hidden"
@@ -284,7 +275,6 @@ const Dashboard = () => {
           />
         )}
 
-        {/* Sidebar - Mobile Drawer & Desktop Fixed */}
         <div
           className={`
           fixed lg:static inset-y-0 left-0 z-50
@@ -311,10 +301,8 @@ const Dashboard = () => {
           />
         </div>
 
-        {/* Scrollable main area */}
         <main className="flex-1 overflow-y-auto py-2 lg:p-6 min-w-0 bg-white">
           <div className="max-w-7xl mx-auto w-full px-4 sm:px-6">
-            {/* Header Section - Responsive */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
               <div className="flex-1 min-w-0">
                 <h1
@@ -331,7 +319,6 @@ const Dashboard = () => {
                 </p>
               </div>
 
-              {/* Quick Actions - Responsive */}
               {activeView === "Dashboard" && currentSession && (
                 <div className="flex flex-col sm:flex-row gap-3">
                   <CustomButton
@@ -346,9 +333,7 @@ const Dashboard = () => {
                     title="Conclude Session"
                     variant="danger"
                     size={isMobile ? "small" : "medium"}
-                    handleClick={() =>
-                      handleConcludeSession(currentSession._id)
-                    }
+                    handleClick={() => handleConcludeSession(currentSession._id)}
                     styles="shadow-lg w-full sm:w-auto border-2"
                     manuscriptColors={MANUSCRIPT_COLORS}
                   />
@@ -368,7 +353,6 @@ const Dashboard = () => {
               )}
             </div>
 
-            {/* Main Content */}
             <div className="w-full">{renderActiveView()}</div>
           </div>
         </main>
